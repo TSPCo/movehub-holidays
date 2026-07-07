@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ResetRequestStatus {
+  PENDING
+  APPROVED
+  DISMISSED
+  USED
+}
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String     @unique
+  passwordHash  String?
+  role          Role       @default(STAFF)
+  allowanceDays Float      @default(25)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+
+  inviteToken       String?   @unique
+  inviteTokenExpiry DateTime?
+
+  requests              HolidayRequest[]       @relation("Requester")
+  reviewedByThem        HolidayRequest[]       @relation("Reviewer")
+  resetRequests         PasswordResetRequest[] @relation("Requester")
+  resolvedResetRequests PasswordResetRequest[] @relation("Resolver")
+}
+
+model PasswordResetRequest {
+  id           String              @id @default(cuid())
+  userId       String
+  status       ResetRequestStatus  @default(PENDING)
+  token        String?             @unique
+  tokenExpiry  DateTime?
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime            @default(now())
+
+  user       User  @relation("Requester", fields: [userId], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("Resolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model HolidayRequest {
+  id           String        @id @default(cuid())
+  userId       String
+  startDate    DateTime
+  endDate      DateTime
+  days         Float
+  notes        String?
+  status       RequestStatus @default(PENDING)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user       User  @relation("Requester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("Reviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
