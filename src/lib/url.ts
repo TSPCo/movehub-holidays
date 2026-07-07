@@ -8,5 +8,11 @@ import type { NextRequest } from "next/server";
  * Falls back to the request's own origin for local dev, where APP_URL usually isn't set.
  */
 export function getAppUrl(request: NextRequest) {
-  return process.env.APP_URL ?? request.nextUrl.origin;
+  const configured = process.env.APP_URL?.trim();
+  if (!configured) return request.nextUrl.origin;
+
+  // Tolerate a bare domain (missing scheme) and a trailing slash, since both are
+  // easy to enter by mistake and would otherwise crash `new URL()` at the call site.
+  const withScheme = /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
+  return withScheme.replace(/\/+$/, "");
 }
