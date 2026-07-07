@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
+import { holidayApprovedEmail, holidayRejectedEmail } from "@/lib/emailTemplates";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -15,7 +17,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
   }
 
-  const existing = await db.holidayRequest.findUnique({ where: { id } });
+  const existing = await db.holidayRequest.findUnique({ where: { id }, include: { user: true } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (existing.status !== "PENDING") {
     return NextResponse.json({ error: "Only pending requests can be reviewed" }, { status: 400 });
@@ -30,6 +32,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       reviewNote,
     },
   });
+
+  const recipientName = existing.user.name ?? existing.user.email;
+  const email = action === "approve"
+    ? holidayApprovedEmail({ name: recipientName, startDate: existing.startDate, endDate: existing.endDate, days: existing.days })
+    : holidayRejectedEmail({ name: recipientName, startDate: existing.startDate, endDate: existing.endDate, reviewNote });
+
+  // Notification is best-effort — a flaky email send shouldn't fail the approval/rejection itself.
+  sendEmail({ to: existing.user.email, subject: email.subject, html: email.html }).catch((err) =>
+    console.error("[email] Failed to send holiday decision notification:", err)
+  );
 
   return NextResponse.json({ request: updated });
 }
