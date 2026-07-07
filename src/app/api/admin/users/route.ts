@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateToken } from "@/lib/auth";
 import { INVITE_TTL_MS } from "@/lib/tokens";
+import { getAppUrl } from "@/lib/url";
 
 const USER_SELECT = { id: true, name: true, email: true, role: true, allowanceDays: true, status: true, createdAt: true } as const;
 
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     select: USER_SELECT,
   });
 
-  const inviteUrl = new URL(`/invite/${inviteToken}`, request.nextUrl.origin).toString();
+  const inviteUrl = new URL(`/invite/${inviteToken}`, getAppUrl(request)).toString();
 
   return NextResponse.json({ user, inviteUrl }, { status: 201 });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generateToken } from "@/lib/auth";
 import { INVITE_TTL_MS } from "@/lib/tokens";
+import { getAppUrl } from "@/lib/url";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: { inviteToken, inviteTokenExpiry: new Date(Date.now() + INVITE_TTL_MS) },
   });
 
-  const inviteUrl = new URL(`/invite/${inviteToken}`, request.nextUrl.origin).toString();
+  const inviteUrl = new URL(`/invite/${inviteToken}`, getAppUrl(request)).toString();
 
   return NextResponse.json({ inviteUrl });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession, generateToken } from "@/lib/auth";
 import { RESET_TTL_MS } from "@/lib/tokens";
+import { getAppUrl } from "@/lib/url";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -41,7 +42,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     },
   });
 
-  const resetUrl = new URL(`/reset-password/${token}`, request.nextUrl.origin).toString();
+  const resetUrl = new URL(`/reset-password/${token}`, getAppUrl(request)).toString();
 
   return NextResponse.json({ request: updated, resetUrl });
 }
