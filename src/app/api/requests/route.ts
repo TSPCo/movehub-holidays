@@ -38,6 +38,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "End date must be on or after the start date" }, { status: 400 });
   }
 
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  if (startDate < todayUtc) {
+    return NextResponse.json({ error: "Start date can't be in the past" }, { status: 400 });
+  }
+
   const days = countWorkingDays(startDate, endDate);
   if (days <= 0) {
     return NextResponse.json({ error: "Selected range contains no working days" }, { status: 400 });

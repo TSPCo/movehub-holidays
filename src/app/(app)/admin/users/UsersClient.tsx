@@ -9,6 +9,7 @@ type UserItem = {
   email: string;
   role: "ADMIN" | "STAFF";
   allowanceDays: number;
+  usedDays: number;
   status: "INVITED" | "ACTIVE" | "DISABLED";
   createdAt: string;
 };
@@ -106,7 +107,7 @@ export function UsersClient({
         setError(body.error || "Something went wrong");
         return;
       }
-      setUsers((prev) => [...prev, body.user]);
+      setUsers((prev) => [...prev, { ...body.user, usedDays: 0 }]);
       setLink({ label: `Invite created for ${inviteForm.email} — copy this link and send it to them:`, url: body.inviteUrl });
       setInviteForm({ email: "", role: "STAFF", allowanceDays: "25" });
       setShowInviteForm(false);
@@ -246,7 +247,7 @@ export function UsersClient({
         <table className="w-full text-sm">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Name", "Email", "Role", "Allowance", "Status", ""].map((h) => (
+              {["Name", "Email", "Role", "Allowance", "Remaining", "Status", ""].map((h) => (
                 <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
                   {h}
                 </th>
@@ -282,6 +283,12 @@ export function UsersClient({
                     }}
                     className="w-16 px-2 py-1 text-xs"
                   />
+                </td>
+                <td className="px-4 py-3">
+                  <span style={u.allowanceDays - u.usedDays < 0 ? { color: "var(--danger)" } : undefined}>
+                    {u.allowanceDays - u.usedDays}
+                  </span>
+                  <span className="text-xs ml-1" style={{ color: "var(--text-muted)" }}>days</span>
                 </td>
                 <td className="px-4 py-3">
                   {u.status === "INVITED" ? (

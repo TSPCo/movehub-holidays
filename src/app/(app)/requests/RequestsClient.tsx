@@ -20,6 +20,14 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
+function todayInputValue() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function RequestsClient({ initialRequests }: { initialRequests: RequestItem[] }) {
   const router = useRouter();
   const [requests, setRequests] = useState(initialRequests);
@@ -28,6 +36,7 @@ export function RequestsClient({ initialRequests }: { initialRequests: RequestIt
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const minDate = todayInputValue();
 
   const previewDays = useMemo(() => {
     if (!startDate || !endDate) return null;
@@ -99,6 +108,7 @@ export function RequestsClient({ initialRequests }: { initialRequests: RequestIt
               id="start-date"
               type="date"
               required
+              min={minDate}
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="px-3 py-2 text-sm w-full"
@@ -110,6 +120,7 @@ export function RequestsClient({ initialRequests }: { initialRequests: RequestIt
               id="end-date"
               type="date"
               required
+              min={startDate || minDate}
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="px-3 py-2 text-sm w-full"

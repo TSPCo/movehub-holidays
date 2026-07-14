@@ -7,7 +7,11 @@ import { UsersClient } from "./UsersClient";
 export default async function AdminUsersPage() {
   const session = await requireAdmin();
 
-  const [users, resetRequests] = await Promise.all([
+  const now = new Date();
+  const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+  const yearEnd = new Date(Date.UTC(now.getUTCFullYear(), 11, 31, 23, 59, 59));
+
+  const [users, resetRequests, usedByUser] = await Promise.all([
     db.user.findMany({
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true, email: true, role: true, allowanceDays: true, status: true, createdAt: true },
@@ -17,9 +21,22 @@ export default async function AdminUsersPage() {
       orderBy: { createdAt: "asc" },
       include: { user: { select: { id: true, name: true, email: true } } },
     }),
+    // Approved days taken this calendar year, per user — the allowance is scoped to the
+    // current year, so this (and therefore "remaining") naturally resets every 1 January.
+    db.holidayRequest.groupBy({
+      by: ["userId"],
+      where: { status: "APPROVED", startDate: { gte: yearStart }, endDate: { lte: yearEnd } },
+      _sum: { days: true },
+    }),
   ]);
 
-  const serializedUsers = users.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }));
+  const usedMap = new Map(usedByUser.map((u) => [u.userId, u._sum.days ?? 0]));
+
+  const serializedUsers = users.map((u) => ({
+    ...u,
+    createdAt: u.createdAt.toISOString(),
+    usedDays: usedMap.get(u.id) ?? 0,
+  }));
   const serializedResetRequests = resetRequests.map((r) => ({ id: r.id, createdAt: r.createdAt.toISOString(), user: r.user }));
 
   return (
