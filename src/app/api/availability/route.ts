@@ -5,7 +5,21 @@ import { db } from "@/lib/db";
 export async function GET(request: NextRequest) {
   const apiKey = request.headers.get("x-availability-api-key");
   if (!apiKey || apiKey !== process.env.AVAILABILITY_API_KEY) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      {
+        error: "Unauthorized",
+        debug: {
+          receivedHeaderKeys: [...request.headers.keys()],
+          receivedLen: apiKey?.length ?? null,
+          receivedPreview: apiKey ? `${apiKey.slice(0, 6)}...${apiKey.slice(-6)}` : null,
+          envLen: process.env.AVAILABILITY_API_KEY?.length ?? null,
+          envPreview: process.env.AVAILABILITY_API_KEY
+            ? `${process.env.AVAILABILITY_API_KEY.slice(0, 6)}...${process.env.AVAILABILITY_API_KEY.slice(-6)}`
+            : null,
+        },
+      },
+      { status: 401 }
+    );
   }
 
   const dateParam = request.nextUrl.searchParams.get("date"); // "YYYY-MM-DD", defaults to today
