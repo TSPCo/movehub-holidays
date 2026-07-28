@@ -59,6 +59,27 @@ export function holidayApprovedEmail(opts: { name: string; startDate: Date; endD
   };
 }
 
+export function passwordResetEmail(opts: { name: string; resetUrl: string }) {
+  const { name, resetUrl } = opts;
+
+  return {
+    subject: "Reset your Move Hub Holidays password",
+    html: layout(
+      "Reset your password",
+      `
+        <p>Hi ${firstName(name)},</p>
+        <p>We got a request to reset your password. Click below to choose a new one — this link expires in an hour and can only be used once.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+          <tr><td style="background:linear-gradient(135deg,#00D4FF 0%,#6366F1 40%,#EC4899 100%);border-radius:8px;">
+            <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;color:#ffffff;font-weight:600;text-decoration:none;">Reset password</a>
+          </td></tr>
+        </table>
+        <p style="color:#6B7280;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
+      `
+    ),
+  };
+}
+
 export function holidayRejectedEmail(opts: { name: string; startDate: Date; endDate: Date; reviewNote: string | null }) {
   const { name, startDate, endDate, reviewNote } = opts;
   const range = startDate.getTime() === endDate.getTime()
