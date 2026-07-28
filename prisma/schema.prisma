@@ -45,6 +45,13 @@ model User {
   inviteToken       String?   @unique
   inviteTokenExpiry DateTime?
 
+  // Set when movehub-commissions reports this person was deleted there, but
+  // they had a real (non-INVITED) account here — status flips to DISABLED
+  // immediately, but the actual delete needs an explicit admin confirmation
+  // rather than happening automatically. See src/lib/peerSync.ts.
+  peerDeleteRequestedAt   DateTime?
+  peerDeleteRequestedFrom String?
+
   requests              HolidayRequest[]       @relation("Requester")
   reviewedByThem        HolidayRequest[]       @relation("Reviewer")
   resetRequests         PasswordResetRequest[] @relation("Requester")
