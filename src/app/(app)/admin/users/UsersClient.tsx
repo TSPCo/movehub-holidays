@@ -309,7 +309,19 @@ export function UsersClient({
             {users.map((u) => (
               <tr key={u.id} className="table-row-hover" style={{ borderBottom: "1px solid var(--border)" }}>
                 <td className="px-4 py-3 font-medium">
-                  {u.name ?? <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Pending invite</span>}
+                  {u.name !== null ? (
+                    <input
+                      type="text"
+                      defaultValue={u.name}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val && val !== u.name) updateUser(u.id, { name: val });
+                      }}
+                      className="px-2 py-1 text-xs w-full"
+                    />
+                  ) : (
+                    <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Pending invite</span>
+                  )}
                 </td>
                 <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{u.email}</td>
                 <td className="px-4 py-3">

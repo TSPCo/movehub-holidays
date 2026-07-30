@@ -24,6 +24,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const data: Record<string, unknown> = {};
 
+  if (typeof body?.name === "string" && body.name.trim()) data.name = body.name.trim();
+
   if (typeof body?.allowanceDays === "number" && body.allowanceDays > 0) data.allowanceDays = body.allowanceDays;
 
   if (typeof body?.role === "string") {
