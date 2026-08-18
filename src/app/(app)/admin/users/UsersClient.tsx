@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type UserItem = {
@@ -331,7 +331,8 @@ export function UsersClient({
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="table-row-hover" style={{ borderBottom: "1px solid var(--border)" }}>
+              <Fragment key={u.id}>
+              <tr className="table-row-hover" style={{ borderBottom: "1px solid var(--border)" }}>
                 <td className="px-4 py-3 font-medium">
                   {u.name !== null ? (
                     <input
@@ -439,41 +440,39 @@ export function UsersClient({
                   </button>
                 </td>
               </tr>
-            ))}
-            {users.map(
-              (u) =>
-                expandedId === u.id && (
-                  <tr key={`${u.id}-details`} style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td colSpan={8} className="px-4 py-4" style={{ background: "rgba(255,255,255,0.02)" }}>
-                      <p className="text-xs font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
-                        Personal details — admin only
-                      </p>
-                      <div className="grid grid-cols-4 gap-3">
-                        {DETAIL_FIELDS.map((field) => (
-                          <div key={field.key} className="flex flex-col gap-1">
-                            <label className="text-xs" style={{ color: "var(--text-muted)" }}>{field.label}</label>
-                            <input
-                              type={field.type ?? "text"}
-                              defaultValue={
-                                field.type === "date"
-                                  ? toDateInputValue(u[field.key] as string | null)
-                                  : (u[field.key] as string | null) ?? ""
+              {expandedId === u.id && (
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td colSpan={8} className="px-4 py-4" style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <p className="text-xs font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
+                      Personal details — admin only
+                    </p>
+                    <div className="grid grid-cols-4 gap-3">
+                      {DETAIL_FIELDS.map((field) => (
+                        <div key={field.key} className="flex flex-col gap-1">
+                          <label className="text-xs" style={{ color: "var(--text-muted)" }}>{field.label}</label>
+                          <input
+                            type={field.type ?? "text"}
+                            defaultValue={
+                              field.type === "date"
+                                ? toDateInputValue(u[field.key] as string | null)
+                                : (u[field.key] as string | null) ?? ""
+                            }
+                            onBlur={(e) => {
+                              const val = e.target.value;
+                              if (val !== ((u[field.key] as string | null) ?? "")) {
+                                updateUser(u.id, { [field.key]: val });
                               }
-                              onBlur={(e) => {
-                                const val = e.target.value;
-                                if (val !== ((u[field.key] as string | null) ?? "")) {
-                                  updateUser(u.id, { [field.key]: val });
-                                }
-                              }}
-                              className="px-2 py-1.5 text-xs w-full"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                )
-            )}
+                            }}
+                            className="px-2 py-1.5 text-xs w-full"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
+            ))}
           </tbody>
         </table>
       </div>
