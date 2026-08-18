@@ -18,29 +18,18 @@ export async function POST(request: NextRequest) {
 
   const user = await db.user.findUnique({ where: { email } });
   if (user && user.status === "ACTIVE") {
-    if (user.role === "ADMIN") {
-      // Admins approve everyone else's reset requests — there's no one left
-      // to approve their own if they're locked out (this app's only admin
-      // being unable to reset their own password was a real incident,
-      // 2026-07-28). Safe to auto-approve because the link only ever goes
-      // to that admin's own registered inbox, same as any standard
-      // "forgot password" flow — the thing the manual-approval step for
-      // STAFF guards against is a visible link in the API response, not a
-      // properly emailed one.
-      const token = generateToken();
-      await db.passwordResetRequest.create({
-        data: { userId: user.id, status: "APPROVED", token, tokenExpiry: new Date(Date.now() + RESET_TTL_MS) },
-      });
-      const resetUrl = new URL(`/reset-password/${token}`, getAppUrl(request)).toString();
-      await sendEmail({ to: user.email, ...passwordResetEmail({ name: user.name ?? user.email, resetUrl }) });
-    } else {
-      const existingPending = await db.passwordResetRequest.findFirst({
-        where: { userId: user.id, status: "PENDING" },
-      });
-      if (!existingPending) {
-        await db.passwordResetRequest.create({ data: { userId: user.id } });
-      }
-    }
+    // Auto-send for every role, not just ADMIN (this used to require manual
+    // admin approval for STAFF — automated 2026-08-16 per Mat's request).
+    // Safe to auto-send because the link only ever goes to that account's
+    // own registered inbox, same as any standard "forgot password" flow —
+    // the thing the old manual-approval step guarded against was a visible
+    // link in the API response, not a properly emailed one.
+    const token = generateToken();
+    await db.passwordResetRequest.create({
+      data: { userId: user.id, status: "APPROVED", token, tokenExpiry: new Date(Date.now() + RESET_TTL_MS) },
+    });
+    const resetUrl = new URL(`/reset-password/${token}`, getAppUrl(request)).toString();
+    await sendEmail({ to: user.email, ...passwordResetEmail({ name: user.name ?? user.email, resetUrl }) });
   }
 
   // Always return the same message, whether or not the account exists, so this endpoint can't be used to enumerate staff emails.
