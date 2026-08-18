@@ -27,8 +27,30 @@ const DETAIL_FIELDS: { key: keyof ProfileUser; label: string; type?: string }[] 
   { key: "emergencyContactPhone", label: "Emergency contact phone" },
 ];
 
-function toDateInputValue(iso: string | null): string {
-  return iso ? iso.slice(0, 10) : "";
+// Deliberately not a native <input type="date"> — Safari (and some other
+// browsers) visually pre-fill an EMPTY date input with today's date as a
+// rendering hint, which looks indistinguishable from an actually-saved
+// value even though nothing was entered. A plain DD/MM/YYYY text field
+// can't lie about being empty.
+function toDateDisplayValue(iso: string | null): string {
+  if (!iso) return "";
+  const [yyyy, mm, dd] = iso.slice(0, 10).split("-");
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+/** Returns an ISO date (YYYY-MM-DD) for a valid DD/MM/YYYY, "" to clear, or undefined if unparseable. */
+function parseDobInput(value: string): string | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return undefined;
+  const [, dd, mm, yyyy] = match;
+  const iso = `${yyyy}-${mm}-${dd}`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime()) || d.getUTCDate() !== Number(dd) || d.getUTCMonth() + 1 !== Number(mm)) {
+    return undefined;
+  }
+  return iso;
 }
 
 export function ProfileClient({ user }: { user: ProfileUser }) {
@@ -56,6 +78,31 @@ export function ProfileClient({ user }: { user: ProfileUser }) {
     setTimeout(() => setSavedField((f) => (f === field ? null : f)), 1500);
   }
 
+  async function saveDob(rawValue: string, inputEl: HTMLInputElement) {
+    const parsed = parseDobInput(rawValue);
+    if (parsed === undefined) {
+      inputEl.value = toDateDisplayValue(values.dateOfBirth);
+      alert("Enter the date as DD/MM/YYYY, or leave it blank.");
+      return;
+    }
+    if (parsed === (values.dateOfBirth?.slice(0, 10) ?? "")) return;
+
+    setError(null);
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dateOfBirth: parsed }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      setError(body.error || "Something went wrong");
+      return;
+    }
+    setValues((prev) => ({ ...prev, ...body.user }));
+    setSavedField("dateOfBirth");
+    setTimeout(() => setSavedField((f) => (f === "dateOfBirth" ? null : f)), 1500);
+  }
+
   return (
     <div className="card p-5 max-w-2xl">
       <div className="mb-4">
@@ -72,16 +119,23 @@ export function ProfileClient({ user }: { user: ProfileUser }) {
               {field.label}
               {savedField === field.key && <span className="ml-2" style={{ color: "var(--success)" }}>Saved</span>}
             </label>
-            <input
-              type={field.type ?? "text"}
-              defaultValue={
-                field.type === "date"
-                  ? toDateInputValue(values[field.key] as string | null)
-                  : (values[field.key] as string | null) ?? ""
-              }
-              onBlur={(e) => save(field.key, e.target.value)}
-              className="px-3 py-2 text-sm w-full"
-            />
+            {field.type === "date" ? (
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/YYYY"
+                defaultValue={toDateDisplayValue(values.dateOfBirth)}
+                onBlur={(e) => saveDob(e.target.value, e.target)}
+                className="px-3 py-2 text-sm w-full"
+              />
+            ) : (
+              <input
+                type="text"
+                defaultValue={(values[field.key] as string | null) ?? ""}
+                onBlur={(e) => save(field.key, e.target.value)}
+                className="px-3 py-2 text-sm w-full"
+              />
+            )}
           </div>
         ))}
       </div>

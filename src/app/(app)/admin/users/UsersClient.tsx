@@ -47,8 +47,30 @@ const STATUS_STYLES: Record<UserItem["status"], { bg: string; color: string; lab
   DISABLED: { bg: "rgba(148,163,184,0.15)", color: "var(--text-muted)", label: "Disabled" },
 };
 
-function toDateInputValue(iso: string | null): string {
-  return iso ? iso.slice(0, 10) : "";
+// Deliberately not a native <input type="date"> — Safari (and some other
+// browsers) visually pre-fill an EMPTY date input with today's date as a
+// rendering hint, which looks indistinguishable from an actually-saved
+// value even though nothing was entered. A plain DD/MM/YYYY text field
+// can't lie about being empty.
+function toDateDisplayValue(iso: string | null): string {
+  if (!iso) return "";
+  const [yyyy, mm, dd] = iso.slice(0, 10).split("-");
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+/** Returns an ISO date (YYYY-MM-DD) for a valid DD/MM/YYYY, "" to clear, or undefined if unparseable. */
+function parseDobInput(value: string): string | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return undefined;
+  const [, dd, mm, yyyy] = match;
+  const iso = `${yyyy}-${mm}-${dd}`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime()) || d.getUTCDate() !== Number(dd) || d.getUTCMonth() + 1 !== Number(mm)) {
+    return undefined;
+  }
+  return iso;
 }
 
 function LinkBanner({ label, url, onDismiss }: { label: string; url: string; onDismiss: () => void }) {
@@ -450,21 +472,38 @@ export function UsersClient({
                       {DETAIL_FIELDS.map((field) => (
                         <div key={field.key} className="flex flex-col gap-1">
                           <label className="text-xs" style={{ color: "var(--text-muted)" }}>{field.label}</label>
-                          <input
-                            type={field.type ?? "text"}
-                            defaultValue={
-                              field.type === "date"
-                                ? toDateInputValue(u[field.key] as string | null)
-                                : (u[field.key] as string | null) ?? ""
-                            }
-                            onBlur={(e) => {
-                              const val = e.target.value;
-                              if (val !== ((u[field.key] as string | null) ?? "")) {
-                                updateUser(u.id, { [field.key]: val });
-                              }
-                            }}
-                            className="px-2 py-1.5 text-xs w-full"
-                          />
+                          {field.type === "date" ? (
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="DD/MM/YYYY"
+                              defaultValue={toDateDisplayValue(u[field.key] as string | null)}
+                              onBlur={(e) => {
+                                const parsed = parseDobInput(e.target.value);
+                                if (parsed === undefined) {
+                                  e.target.value = toDateDisplayValue(u[field.key] as string | null);
+                                  alert("Enter the date as DD/MM/YYYY, or leave it blank.");
+                                  return;
+                                }
+                                if (parsed !== ((u[field.key] as string | null)?.slice(0, 10) ?? "")) {
+                                  updateUser(u.id, { [field.key]: parsed });
+                                }
+                              }}
+                              className="px-2 py-1.5 text-xs w-full"
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              defaultValue={(u[field.key] as string | null) ?? ""}
+                              onBlur={(e) => {
+                                const val = e.target.value;
+                                if (val !== ((u[field.key] as string | null) ?? "")) {
+                                  updateUser(u.id, { [field.key]: val });
+                                }
+                              }}
+                              className="px-2 py-1.5 text-xs w-full"
+                            />
+                          )}
                         </div>
                       ))}
                     </div>
