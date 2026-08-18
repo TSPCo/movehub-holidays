@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { CalendarDays, ListChecks, ClipboardCheck, Users, LogOut } from "lucide-react";
+import { CalendarDays, ListChecks, ClipboardCheck, Users, LogOut, IdCard } from "lucide-react";
 
 type Props = {
   user: { name: string; email: string; role: "ADMIN" | "STAFF" };
@@ -12,6 +12,7 @@ type Props = {
 const nav = [
   { href: "/", label: "Calendar", icon: CalendarDays, adminOnly: false },
   { href: "/requests", label: "My Requests", icon: ListChecks, adminOnly: false },
+  { href: "/profile", label: "My Details", icon: IdCard, adminOnly: false },
   { href: "/admin/requests", label: "Approvals", icon: ClipboardCheck, adminOnly: true },
   { href: "/admin/users", label: "Staff", icon: Users, adminOnly: true },
 ];
