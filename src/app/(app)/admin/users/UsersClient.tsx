@@ -14,7 +14,26 @@ type UserItem = {
   createdAt: string;
   peerDeleteRequestedAt: string | null;
   peerDeleteRequestedFrom: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  postcode: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
 };
+
+const DETAIL_FIELDS: { key: keyof UserItem; label: string; type?: string }[] = [
+  { key: "phone", label: "Phone" },
+  { key: "dateOfBirth", label: "Date of birth", type: "date" },
+  { key: "addressLine1", label: "Address line 1" },
+  { key: "addressLine2", label: "Address line 2" },
+  { key: "city", label: "City" },
+  { key: "postcode", label: "Postcode" },
+  { key: "emergencyContactName", label: "Emergency contact name" },
+  { key: "emergencyContactPhone", label: "Emergency contact phone" },
+];
 
 type ResetRequestItem = {
   id: string;
@@ -27,6 +46,10 @@ const STATUS_STYLES: Record<UserItem["status"], { bg: string; color: string; lab
   ACTIVE: { bg: "rgba(34,197,94,0.15)", color: "var(--success)", label: "Active" },
   DISABLED: { bg: "rgba(148,163,184,0.15)", color: "var(--text-muted)", label: "Disabled" },
 };
+
+function toDateInputValue(iso: string | null): string {
+  return iso ? iso.slice(0, 10) : "";
+}
 
 function LinkBanner({ label, url, onDismiss }: { label: string; url: string; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -77,6 +100,7 @@ export function UsersClient({
 
   const [inviteForm, setInviteForm] = useState({ email: "", role: "STAFF", allowanceDays: "25" });
   const [inviting, setInviting] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function updateUser(id: string, data: Record<string, unknown>) {
     setError(null);
@@ -298,8 +322,8 @@ export function UsersClient({
         <table className="w-full text-sm">
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Name", "Email", "Role", "Allowance", "Remaining", "Status", ""].map((h) => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+              {["Name", "Email", "Role", "Allowance", "Remaining", "Status", "", ""].map((h, i) => (
+                <th key={`${h}-${i}`} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
                   {h}
                 </th>
               ))}
@@ -405,8 +429,51 @@ export function UsersClient({
                     </button>
                   )}
                 </td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={() => setExpandedId((prev) => (prev === u.id ? null : u.id))}
+                    className="text-xs font-medium"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    {expandedId === u.id ? "Hide details" : "Details"}
+                  </button>
+                </td>
               </tr>
             ))}
+            {users.map(
+              (u) =>
+                expandedId === u.id && (
+                  <tr key={`${u.id}-details`} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td colSpan={8} className="px-4 py-4" style={{ background: "rgba(255,255,255,0.02)" }}>
+                      <p className="text-xs font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
+                        Personal details — admin only
+                      </p>
+                      <div className="grid grid-cols-4 gap-3">
+                        {DETAIL_FIELDS.map((field) => (
+                          <div key={field.key} className="flex flex-col gap-1">
+                            <label className="text-xs" style={{ color: "var(--text-muted)" }}>{field.label}</label>
+                            <input
+                              type={field.type ?? "text"}
+                              defaultValue={
+                                field.type === "date"
+                                  ? toDateInputValue(u[field.key] as string | null)
+                                  : (u[field.key] as string | null) ?? ""
+                              }
+                              onBlur={(e) => {
+                                const val = e.target.value;
+                                if (val !== ((u[field.key] as string | null) ?? "")) {
+                                  updateUser(u.id, { [field.key]: val });
+                                }
+                              }}
+                              className="px-2 py-1.5 text-xs w-full"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )
+            )}
           </tbody>
         </table>
       </div>

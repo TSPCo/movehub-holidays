@@ -13,7 +13,25 @@ const USER_SELECT = {
   createdAt: true,
   peerDeleteRequestedAt: true,
   peerDeleteRequestedFrom: true,
+  phone: true,
+  dateOfBirth: true,
+  addressLine1: true,
+  addressLine2: true,
+  city: true,
+  postcode: true,
+  emergencyContactName: true,
+  emergencyContactPhone: true,
 } as const;
+
+const DETAIL_STRING_FIELDS = [
+  "phone",
+  "addressLine1",
+  "addressLine2",
+  "city",
+  "postcode",
+  "emergencyContactName",
+  "emergencyContactPhone",
+] as const;
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -27,6 +45,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (typeof body?.name === "string" && body.name.trim()) data.name = body.name.trim();
 
   if (typeof body?.allowanceDays === "number" && body.allowanceDays > 0) data.allowanceDays = body.allowanceDays;
+
+  for (const field of DETAIL_STRING_FIELDS) {
+    if (typeof body?.[field] === "string") data[field] = body[field].trim() || null;
+  }
+
+  if ("dateOfBirth" in (body ?? {})) {
+    data.dateOfBirth =
+      typeof body.dateOfBirth === "string" && body.dateOfBirth ? new Date(body.dateOfBirth) : null;
+  }
 
   if (typeof body?.role === "string") {
     if (id === session.sub && body.role !== "ADMIN") {

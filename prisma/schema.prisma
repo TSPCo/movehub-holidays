@@ -45,6 +45,18 @@ model User {
   inviteToken       String?   @unique
   inviteTokenExpiry DateTime?
 
+  // Personal/HR details — admin-only, editable from the Staff page's details
+  // section. All optional since existing staff won't have these filled in
+  // until an admin adds them.
+  phone                 String?
+  dateOfBirth           DateTime?
+  addressLine1          String?
+  addressLine2          String?
+  city                  String?
+  postcode              String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
   // Set when movehub-commissions reports this person was deleted there, but
   // they had a real (non-INVITED) account here — status flips to DISABLED
   // immediately, but the actual delete needs an explicit admin confirmation
