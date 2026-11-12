@@ -15,20 +15,12 @@ const USER_SELECT = {
   peerDeleteRequestedFrom: true,
   phone: true,
   dateOfBirth: true,
-  addressLine1: true,
-  addressLine2: true,
-  city: true,
-  postcode: true,
   emergencyContactName: true,
   emergencyContactPhone: true,
 } as const;
 
 const DETAIL_STRING_FIELDS = [
   "phone",
-  "addressLine1",
-  "addressLine2",
-  "city",
-  "postcode",
   "emergencyContactName",
   "emergencyContactPhone",
 ] as const;

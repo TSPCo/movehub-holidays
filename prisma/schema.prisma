@@ -50,6 +50,9 @@ model User {
   // until an admin adds them.
   phone                 String?
   dateOfBirth           DateTime?
+  // No longer shown or editable (removed 2026-11): staff addresses now live in
+  // Move Hub Commissions (My details), where they're used on self-billed
+  // invoices. Columns kept so existing data isn't lost; safe to drop later.
   addressLine1          String?
   addressLine2          String?
   city                  String?

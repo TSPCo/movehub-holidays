@@ -7,10 +7,6 @@ import { getSession } from "@/lib/auth";
 // /api/admin/users/[id].
 const DETAIL_STRING_FIELDS = [
   "phone",
-  "addressLine1",
-  "addressLine2",
-  "city",
-  "postcode",
   "emergencyContactName",
   "emergencyContactPhone",
 ] as const;
@@ -21,10 +17,6 @@ const SELECT = {
   email: true,
   phone: true,
   dateOfBirth: true,
-  addressLine1: true,
-  addressLine2: true,
-  city: true,
-  postcode: true,
   emergencyContactName: true,
   emergencyContactPhone: true,
 } as const;

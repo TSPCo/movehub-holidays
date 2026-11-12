@@ -8,10 +8,6 @@ type ProfileUser = {
   email: string;
   phone: string | null;
   dateOfBirth: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
-  city: string | null;
-  postcode: string | null;
   emergencyContactName: string | null;
   emergencyContactPhone: string | null;
 };
@@ -19,10 +15,6 @@ type ProfileUser = {
 const DETAIL_FIELDS: { key: keyof ProfileUser; label: string; type?: string }[] = [
   { key: "phone", label: "Phone" },
   { key: "dateOfBirth", label: "Date of birth", type: "date" },
-  { key: "addressLine1", label: "Address line 1" },
-  { key: "addressLine2", label: "Address line 2" },
-  { key: "city", label: "City" },
-  { key: "postcode", label: "Postcode" },
   { key: "emergencyContactName", label: "Emergency contact name" },
   { key: "emergencyContactPhone", label: "Emergency contact phone" },
 ];
