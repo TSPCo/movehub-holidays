@@ -11,7 +11,8 @@ type PeerEvent = "invited" | "disabled" | "enabled" | "deleted";
  * a peer outage must not break the local action (invite/disable/delete)
  * that triggered it; failures are just logged.
  */
-export async function notifyPeer(event: PeerEvent, user: { email: string; role: "ADMIN" | "STAFF" }) {
+// Commissions has no Team Leader role, so a team leader is sent over as STAFF.
+export async function notifyPeer(event: PeerEvent, user: { email: string; role: "ADMIN" | "TEAM_LEADER" | "STAFF" }) {
   const peerUrl = process.env.PEER_APP_URL?.trim();
   const secret = process.env.STAFF_SYNC_SECRET?.trim();
   if (!peerUrl || !secret) return;
@@ -20,7 +21,7 @@ export async function notifyPeer(event: PeerEvent, user: { email: string; role: 
     const res = await fetch(new URL("/api/webhooks/staff-sync", peerUrl), {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-staff-sync-secret": secret },
-      body: JSON.stringify({ event, email: user.email, role: user.role }),
+      body: JSON.stringify({ event, email: user.email, role: user.role === "ADMIN" ? "ADMIN" : "STAFF" }),
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) console.error(`[peerSync] ${OTHER_PEER_NAME} rejected "${event}" for ${user.email}: ${res.status}`);

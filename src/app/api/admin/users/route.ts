@@ -4,6 +4,7 @@ import { generateToken } from "@/lib/auth";
 import { INVITE_TTL_MS } from "@/lib/tokens";
 import { getAppUrl } from "@/lib/url";
 import { notifyPeer } from "@/lib/peerSync";
+import { parseRole } from "@/lib/roles";
 
 const USER_SELECT = { id: true, name: true, email: true, role: true, allowanceDays: true, status: true, createdAt: true } as const;
 
@@ -18,7 +19,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
-  const role = body?.role === "ADMIN" ? "ADMIN" : "STAFF";
+  const role = parseRole(body?.role) ?? "STAFF";
   const allowanceDays = Number(body?.allowanceDays);
 
   if (!email) {

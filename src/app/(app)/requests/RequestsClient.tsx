@@ -13,6 +13,7 @@ type RequestItem = {
   notes: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
   reviewNote: string | null;
+  reviewedByName?: string | null;
 };
 
 function formatDate(iso: string) {
@@ -173,7 +174,7 @@ export function RequestsClient({ initialRequests }: { initialRequests: RequestIt
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <StatusBadge status={r.status} />
+                    <StatusBadge status={r.status} reviewedBy={r.reviewedByName} />
                     {(r.status === "PENDING" || r.status === "APPROVED") && (
                       <button
                         onClick={() => handleCancel(r.id)}

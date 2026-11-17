@@ -24,10 +24,6 @@ export default async function AdminUsersPage() {
         createdAt: true,
         peerDeleteRequestedAt: true,
         peerDeleteRequestedFrom: true,
-        phone: true,
-        dateOfBirth: true,
-        emergencyContactName: true,
-        emergencyContactPhone: true,
       },
     }),
     db.passwordResetRequest.findMany({
@@ -50,7 +46,6 @@ export default async function AdminUsersPage() {
     ...u,
     createdAt: u.createdAt.toISOString(),
     peerDeleteRequestedAt: u.peerDeleteRequestedAt?.toISOString() ?? null,
-    dateOfBirth: u.dateOfBirth?.toISOString() ?? null,
     usedDays: usedMap.get(u.id) ?? 0,
   }));
   const serializedResetRequests = resetRequests.map((r) => ({ id: r.id, createdAt: r.createdAt.toISOString(), user: r.user }));

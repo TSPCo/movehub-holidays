@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getLiveRole, getSession } from "@/lib/auth";
+import { canApprove, reviewerLabel } from "@/lib/roles";
 import { sendEmail } from "@/lib/email";
 import { holidayApprovedEmail, holidayRejectedEmail } from "@/lib/emailTemplates";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Live DB role, not the session cookie's, so a demoted user loses access immediately.
+  const role = await getLiveRole(session.sub);
+  if (!canApprove(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
   const body = await request.json().catch(() => null);
@@ -22,6 +27,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (existing.status !== "PENDING") {
     return NextResponse.json({ error: "Only pending requests can be reviewed" }, { status: 400 });
   }
+  if (role === "TEAM_LEADER" && existing.userId === session.sub) {
+    return NextResponse.json({ error: "Your own request needs approving by an admin or another team leader" }, { status: 403 });
+  }
 
   const updated = await db.holidayRequest.update({
     where: { id },
@@ -31,6 +39,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       reviewedAt: new Date(),
       reviewNote,
     },
+    include: { reviewedBy: { select: { name: true, email: true } } },
   });
 
   const recipientName = existing.user.name ?? existing.user.email;
@@ -43,5 +52,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     console.error("[email] Failed to send holiday decision notification:", err)
   );
 
-  return NextResponse.json({ request: updated });
+  const { reviewedBy, ...reviewed } = updated;
+  return NextResponse.json({ request: { ...reviewed, reviewedByName: reviewerLabel(reviewedBy) } });
 }

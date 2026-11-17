@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
+import { db } from "@/lib/db";
+import { canApprove, type Role } from "@/lib/roles";
 
 export const SESSION_COOKIE = "mh_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -18,7 +20,7 @@ export type SessionPayload = {
   sub: string;
   name: string;
   email: string;
-  role: "ADMIN" | "STAFF";
+  role: Role;
 };
 
 export async function hashPassword(password: string) {
@@ -87,4 +89,23 @@ export async function requireAdmin(): Promise<SessionPayload> {
   const session = await requireUser();
   if (session.role !== "ADMIN") redirect("/");
   return session;
+}
+
+/**
+ * Current role straight from the database rather than the session cookie, so a
+ * promotion/demotion takes effect immediately instead of after the 7-day
+ * session expires. Returns null for a missing or disabled account.
+ */
+export async function getLiveRole(userId: string): Promise<Role | null> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true, status: true } });
+  if (!user || user.status !== "ACTIVE") return null;
+  return user.role;
+}
+
+/** Page-level guard for the Approvals page — admins and team leaders. */
+export async function requireApprover(): Promise<SessionPayload & { liveRole: Role }> {
+  const session = await requireUser();
+  const liveRole = await getLiveRole(session.sub);
+  if (!canApprove(liveRole)) redirect("/");
+  return { ...session, liveRole: liveRole! };
 }

@@ -34,7 +34,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+  // Approvals are also open to Team Leaders. Their page and API check the
+  // user's current role in the database themselves (so a promotion works
+  // without signing out and back in), so the proxy just lets them through.
+  const isApprovalsRoute =
+    pathname === "/admin/requests" || pathname.startsWith("/admin/requests/") ||
+    pathname === "/api/admin/requests" || pathname.startsWith("/api/admin/requests/");
+  const isAdminRoute = !isApprovalsRoute && (pathname.startsWith("/admin") || pathname.startsWith("/api/admin"));
   if (isAdminRoute && role !== "ADMIN") {
     if (isApi) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     return NextResponse.redirect(new URL("/", request.url));

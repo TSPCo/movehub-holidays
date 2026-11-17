@@ -21,11 +21,20 @@ function formatDate(iso: string) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-export function AdminRequestsClient({ initialRequests }: { initialRequests: RequestItem[] }) {
+export function AdminRequestsClient({
+  initialRequests,
+  currentUserId,
+  canApproveOwn,
+}: {
+  initialRequests: RequestItem[];
+  currentUserId: string;
+  canApproveOwn: boolean;
+}) {
   const router = useRouter();
   const [requests, setRequests] = useState(initialRequests);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const pending = useMemo(() => requests.filter((r) => r.status === "PENDING"), [requests]);
   const history = useMemo(() => requests.filter((r) => r.status !== "PENDING"), [requests]);
@@ -36,17 +45,27 @@ export function AdminRequestsClient({ initialRequests }: { initialRequests: Requ
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, reviewNote }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: data.request.status, reviewNote: data.request.reviewNote } : r)));
-      setRejectingId(null);
-      setRejectNote("");
-      router.refresh();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error || "Something went wrong");
+      return;
     }
+    setError(null);
+    setRequests((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? { ...r, status: data.request.status, reviewNote: data.request.reviewNote, reviewedByName: data.request.reviewedByName }
+          : r
+      )
+    );
+    setRejectingId(null);
+    setRejectNote("");
+    router.refresh();
   }
 
   return (
     <div className="flex flex-col gap-8">
+      {error && <p className="text-sm" style={{ color: "var(--danger)" }}>{error}</p>}
       <section>
         <h2 className="text-sm font-semibold mb-3">
           Pending
@@ -72,6 +91,9 @@ export function AdminRequestsClient({ initialRequests }: { initialRequests: Requ
                     </p>
                     {r.notes && <p className="text-xs mt-1.5" style={{ color: "var(--text-muted)" }}>{r.notes}</p>}
                   </div>
+                  {r.user.id === currentUserId && !canApproveOwn ? (
+                    <p className="text-xs shrink-0" style={{ color: "var(--text-muted)" }}>Your request — needs another approver</p>
+                  ) : (
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => review(r.id, "approve")}
@@ -88,6 +110,7 @@ export function AdminRequestsClient({ initialRequests }: { initialRequests: Requ
                       Reject
                     </button>
                   </div>
+                  )}
                 </div>
                 {rejectingId === r.id && (
                   <div className="mt-3 flex items-center gap-2" style={{ borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}>
@@ -127,7 +150,7 @@ export function AdminRequestsClient({ initialRequests }: { initialRequests: Requ
                     {formatDate(r.startDate)} → {formatDate(r.endDate)} · {r.days} day{r.days === 1 ? "" : "s"}
                   </p>
                 </div>
-                <StatusBadge status={r.status} />
+                <StatusBadge status={r.status} reviewedBy={r.reviewedByName} />
               </div>
             ))}
           </div>

@@ -1,31 +1,21 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ROLES, ROLE_LABELS, type Role } from "@/lib/roles";
 
 type UserItem = {
   id: string;
   name: string | null;
   email: string;
-  role: "ADMIN" | "STAFF";
+  role: Role;
   allowanceDays: number;
   usedDays: number;
   status: "INVITED" | "ACTIVE" | "DISABLED";
   createdAt: string;
   peerDeleteRequestedAt: string | null;
   peerDeleteRequestedFrom: string | null;
-  phone: string | null;
-  dateOfBirth: string | null;
-  emergencyContactName: string | null;
-  emergencyContactPhone: string | null;
 };
-
-const DETAIL_FIELDS: { key: keyof UserItem; label: string; type?: string }[] = [
-  { key: "phone", label: "Phone" },
-  { key: "dateOfBirth", label: "Date of birth", type: "date" },
-  { key: "emergencyContactName", label: "Emergency contact name" },
-  { key: "emergencyContactPhone", label: "Emergency contact phone" },
-];
 
 type ResetRequestItem = {
   id: string;
@@ -38,32 +28,6 @@ const STATUS_STYLES: Record<UserItem["status"], { bg: string; color: string; lab
   ACTIVE: { bg: "rgba(34,197,94,0.15)", color: "var(--success)", label: "Active" },
   DISABLED: { bg: "rgba(148,163,184,0.15)", color: "var(--text-muted)", label: "Disabled" },
 };
-
-// Deliberately not a native <input type="date"> — Safari (and some other
-// browsers) visually pre-fill an EMPTY date input with today's date as a
-// rendering hint, which looks indistinguishable from an actually-saved
-// value even though nothing was entered. A plain DD/MM/YYYY text field
-// can't lie about being empty.
-function toDateDisplayValue(iso: string | null): string {
-  if (!iso) return "";
-  const [yyyy, mm, dd] = iso.slice(0, 10).split("-");
-  return `${dd}/${mm}/${yyyy}`;
-}
-
-/** Returns an ISO date (YYYY-MM-DD) for a valid DD/MM/YYYY, "" to clear, or undefined if unparseable. */
-function parseDobInput(value: string): string | null | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  const match = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return undefined;
-  const [, dd, mm, yyyy] = match;
-  const iso = `${yyyy}-${mm}-${dd}`;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime()) || d.getUTCDate() !== Number(dd) || d.getUTCMonth() + 1 !== Number(mm)) {
-    return undefined;
-  }
-  return iso;
-}
 
 function LinkBanner({ label, url, onDismiss }: { label: string; url: string; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -114,7 +78,6 @@ export function UsersClient({
 
   const [inviteForm, setInviteForm] = useState({ email: "", role: "STAFF", allowanceDays: "25" });
   const [inviting, setInviting] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function updateUser(id: string, data: Record<string, unknown>) {
     setError(null);
@@ -191,6 +154,25 @@ export function UsersClient({
       return;
     }
     setUsers((prev) => prev.filter((u) => u.id !== id));
+    router.refresh();
+  }
+
+  async function handleDeleteUser(u: UserItem) {
+    const label = u.name ?? u.email;
+    if (
+      !confirm(
+        `Permanently delete ${label}?\n\nThis removes their login and all of their holiday requests (including past and booked holidays) from the calendar. It can't be undone.\n\nIf you just want to stop them signing in, use Disable instead.`
+      )
+    )
+      return;
+    setError(null);
+    const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(body.error || "Something went wrong");
+      return;
+    }
+    setUsers((prev) => prev.filter((x) => x.id !== u.id));
     router.refresh();
   }
 
@@ -311,8 +293,9 @@ export function UsersClient({
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Role</label>
             <select value={inviteForm.role} onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })} className="px-3 py-2 text-sm w-full">
-              <option value="STAFF">Staff</option>
-              <option value="ADMIN">Admin</option>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+              ))}
             </select>
           </div>
           <div className="flex flex-col gap-1">
@@ -345,8 +328,7 @@ export function UsersClient({
           </thead>
           <tbody>
             {users.map((u) => (
-              <Fragment key={u.id}>
-              <tr className="table-row-hover" style={{ borderBottom: "1px solid var(--border)" }}>
+              <tr key={u.id} className="table-row-hover" style={{ borderBottom: "1px solid var(--border)" }}>
                 <td className="px-4 py-3 font-medium">
                   {u.name !== null ? (
                     <input
@@ -370,8 +352,9 @@ export function UsersClient({
                     disabled={u.id === currentUserId}
                     className="px-2 py-1 text-xs"
                   >
-                    <option value="STAFF">Staff</option>
-                    <option value="ADMIN">Admin</option>
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                    ))}
                   </select>
                 </td>
                 <td className="px-4 py-3">
@@ -445,64 +428,13 @@ export function UsersClient({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => setExpandedId((prev) => (prev === u.id ? null : u.id))}
-                    className="text-xs font-medium"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {expandedId === u.id ? "Hide details" : "Details"}
-                  </button>
+                  {u.status !== "INVITED" && u.id !== currentUserId && (
+                    <button onClick={() => handleDeleteUser(u)} className="text-xs font-medium" style={{ color: "var(--danger)" }}>
+                      Delete
+                    </button>
+                  )}
                 </td>
               </tr>
-              {expandedId === u.id && (
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td colSpan={8} className="px-4 py-4" style={{ background: "rgba(255,255,255,0.02)" }}>
-                    <p className="text-xs font-medium mb-3" style={{ color: "var(--text-secondary)" }}>
-                      Personal details — admin only
-                    </p>
-                    <div className="grid grid-cols-4 gap-3">
-                      {DETAIL_FIELDS.map((field) => (
-                        <div key={field.key} className="flex flex-col gap-1">
-                          <label className="text-xs" style={{ color: "var(--text-muted)" }}>{field.label}</label>
-                          {field.type === "date" ? (
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="DD/MM/YYYY"
-                              defaultValue={toDateDisplayValue(u[field.key] as string | null)}
-                              onBlur={(e) => {
-                                const parsed = parseDobInput(e.target.value);
-                                if (parsed === undefined) {
-                                  e.target.value = toDateDisplayValue(u[field.key] as string | null);
-                                  alert("Enter the date as DD/MM/YYYY, or leave it blank.");
-                                  return;
-                                }
-                                if (parsed !== ((u[field.key] as string | null)?.slice(0, 10) ?? "")) {
-                                  updateUser(u.id, { [field.key]: parsed });
-                                }
-                              }}
-                              className="px-2 py-1.5 text-xs w-full"
-                            />
-                          ) : (
-                            <input
-                              type="text"
-                              defaultValue={(u[field.key] as string | null) ?? ""}
-                              onBlur={(e) => {
-                                const val = e.target.value;
-                                if (val !== ((u[field.key] as string | null) ?? "")) {
-                                  updateUser(u.id, { [field.key]: val });
-                                }
-                              }}
-                              className="px-2 py-1.5 text-xs w-full"
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              )}
-              </Fragment>
             ))}
           </tbody>
         </table>

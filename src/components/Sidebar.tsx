@@ -3,18 +3,18 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { CalendarDays, ListChecks, ClipboardCheck, Users, LogOut, IdCard } from "lucide-react";
+import { CalendarDays, ListChecks, ClipboardCheck, Users, LogOut } from "lucide-react";
+import { canApprove, ROLE_LABELS, type Role } from "@/lib/roles";
 
 type Props = {
-  user: { name: string; email: string; role: "ADMIN" | "STAFF" };
+  user: { name: string; email: string; role: Role };
 };
 
-const nav = [
-  { href: "/", label: "Calendar", icon: CalendarDays, adminOnly: false },
-  { href: "/requests", label: "My Requests", icon: ListChecks, adminOnly: false },
-  { href: "/profile", label: "My Details", icon: IdCard, adminOnly: false },
-  { href: "/admin/requests", label: "Approvals", icon: ClipboardCheck, adminOnly: true },
-  { href: "/admin/users", label: "Staff", icon: Users, adminOnly: true },
+const nav: { href: string; label: string; icon: typeof CalendarDays; show: (role: Role) => boolean }[] = [
+  { href: "/", label: "Calendar", icon: CalendarDays, show: () => true },
+  { href: "/requests", label: "My Requests", icon: ListChecks, show: () => true },
+  { href: "/admin/requests", label: "Approvals", icon: ClipboardCheck, show: canApprove },
+  { href: "/admin/users", label: "Staff", icon: Users, show: (role) => role === "ADMIN" },
 ];
 
 export function Sidebar({ user }: Props) {
@@ -39,7 +39,7 @@ export function Sidebar({ user }: Props) {
 
       <nav className="flex-1 space-y-0.5 p-3">
         {nav
-          .filter((item) => !item.adminOnly || user.role === "ADMIN")
+          .filter((item) => item.show(user.role))
           .map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
             return (
@@ -64,6 +64,9 @@ export function Sidebar({ user }: Props) {
         <div className="rounded-xl px-3 py-2 mb-2" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)" }}>
           <p className="text-xs font-medium text-white truncate">{user.name}</p>
           <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{user.email}</p>
+          {user.role !== "STAFF" && (
+            <p className="text-[10px] mt-0.5 font-medium uppercase tracking-wide" style={{ color: "var(--cyan)" }}>{ROLE_LABELS[user.role]}</p>
+          )}
         </div>
         <button
           onClick={handleLogout}

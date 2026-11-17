@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession, hashPassword } from "@/lib/auth";
 import { notifyPeer } from "@/lib/peerSync";
+import { parseRole } from "@/lib/roles";
 
 const USER_SELECT = {
   id: true,
@@ -13,17 +14,7 @@ const USER_SELECT = {
   createdAt: true,
   peerDeleteRequestedAt: true,
   peerDeleteRequestedFrom: true,
-  phone: true,
-  dateOfBirth: true,
-  emergencyContactName: true,
-  emergencyContactPhone: true,
 } as const;
-
-const DETAIL_STRING_FIELDS = [
-  "phone",
-  "emergencyContactName",
-  "emergencyContactPhone",
-] as const;
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
@@ -38,20 +29,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   if (typeof body?.allowanceDays === "number" && body.allowanceDays > 0) data.allowanceDays = body.allowanceDays;
 
-  for (const field of DETAIL_STRING_FIELDS) {
-    if (typeof body?.[field] === "string") data[field] = body[field].trim() || null;
-  }
-
-  if ("dateOfBirth" in (body ?? {})) {
-    data.dateOfBirth =
-      typeof body.dateOfBirth === "string" && body.dateOfBirth ? new Date(body.dateOfBirth) : null;
-  }
-
   if (typeof body?.role === "string") {
     if (id === session.sub && body.role !== "ADMIN") {
       return NextResponse.json({ error: "You can't remove your own admin access" }, { status: 400 });
     }
-    if (body.role === "ADMIN" || body.role === "STAFF") data.role = body.role;
+    const role = parseRole(body.role);
+    if (role) data.role = role;
   }
 
   if (typeof body?.status === "string") {
@@ -97,17 +80,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
+  if (id === session.sub) {
+    return NextResponse.json({ error: "You can't delete your own account" }, { status: 400 });
+  }
 
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  // Only a pending invite can be cancelled directly here — except when
-  // movehub-commissions already flagged this real account for deletion, in
-  // which case this call IS the admin's explicit confirmation of that.
-  if (existing.status !== "INVITED" && !existing.peerDeleteRequestedAt) {
-    return NextResponse.json({ error: "Only a pending invite can be cancelled" }, { status: 400 });
-  }
 
+  // Admin-confirmed delete (the Staff page asks first). This also removes the
+  // person's holiday requests and password-reset requests (onDelete: Cascade);
+  // requests they approved for others keep their status but lose the approver.
   await db.user.delete({ where: { id } });
 
   await notifyPeer("deleted", { email: existing.email, role: existing.role });

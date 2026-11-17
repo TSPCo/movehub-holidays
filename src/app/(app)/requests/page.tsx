@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { reviewerLabel } from "@/lib/roles";
 import { RequestsClient } from "./RequestsClient";
 
 export default async function RequestsPage() {
@@ -10,6 +11,7 @@ export default async function RequestsPage() {
   const requests = await db.holidayRequest.findMany({
     where: { userId: session.sub },
     orderBy: { createdAt: "desc" },
+    include: { reviewedBy: { select: { name: true, email: true } } },
   });
 
   const serialized = requests.map((r) => ({
@@ -20,6 +22,7 @@ export default async function RequestsPage() {
     notes: r.notes,
     status: r.status,
     reviewNote: r.reviewNote,
+    reviewedByName: reviewerLabel(r.reviewedBy),
   }));
 
   return (

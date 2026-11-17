@@ -1,17 +1,18 @@
 export const dynamic = "force-dynamic";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireApprover } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { reviewerLabel } from "@/lib/roles";
 import { AdminRequestsClient } from "./AdminRequestsClient";
 
 export default async function AdminRequestsPage() {
-  await requireAdmin();
+  const session = await requireApprover();
 
   const requests = await db.holidayRequest.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     include: {
       user: { select: { id: true, name: true, email: true } },
-      reviewedBy: { select: { name: true } },
+      reviewedBy: { select: { name: true, email: true } },
     },
   });
 
@@ -24,7 +25,7 @@ export default async function AdminRequestsPage() {
     status: r.status,
     reviewNote: r.reviewNote,
     user: { id: r.user.id, name: r.user.name ?? r.user.email, email: r.user.email },
-    reviewedByName: r.reviewedBy?.name ?? null,
+    reviewedByName: reviewerLabel(r.reviewedBy),
   }));
 
   return (
@@ -33,7 +34,11 @@ export default async function AdminRequestsPage() {
       <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
         Review pending holiday requests from the team.
       </p>
-      <AdminRequestsClient initialRequests={serialized} />
+      <AdminRequestsClient
+        initialRequests={serialized}
+        currentUserId={session.sub}
+        canApproveOwn={session.liveRole === "ADMIN"}
+      />
     </div>
   );
 }
